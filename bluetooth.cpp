@@ -110,8 +110,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
     }
 }
 
-static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param) {
     /* If event is register event, store the gattc_if for each profile */
     if (event == ESP_GATTC_REG_EVT) {
         if (param->reg.status == ESP_GATT_OK) {
@@ -136,123 +135,28 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
     } while (0);
 }
 
-/*!
- * @brief  Get device name in adv
- */
-static char *get_device_name(uint8_t *adv_data, uint8_t adv_data_len, char *name_buf, size_t buf_len) {
-    uint8_t index = 0;
+static char* ble_get_name(uint8_t *data, uint8_t len, char *out, size_t out_len) {
+    uint8_t pos = 0;
 
-    while (index < adv_data_len) {
-        uint8_t length = adv_data[index];
-        if (length == 0) break;
+    while (pos < len) {
+        uint8_t field_len = data[pos];
+        if (field_len == 0) break;
 
-        uint8_t type = adv_data[index + 1];
+        uint8_t type = data[pos + 1];
 
         if (type == 0x09 || type == 0x08) {
-            uint8_t name_len = length - 1;
-            if (name_len >= buf_len) name_len = buf_len - 1;
-
-            memcpy(name_buf, adv_data + index + 2, name_len);
-            name_buf[name_len] = '\0';
-            return name_buf;
+            uint8_t name_len = field_len - 1;
+            if (name_len >= out_len) name_len = out_len - 1;
+            memcpy(out, &data[pos + 2], name_len);
+            out[name_len] = '\0';
+            return out;
         }
-
-        index += length + 1;
+        pos += field_len + 1;
     }
-
     return NULL;
 }
 
-/*!
- * @brief  Bluetooth event
- */
-static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
-    static int try_start = 0;
-
-    switch (event) {
-        case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
-            break;
-        }
-
-        case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
-            if (param->scan_start_cmpl.status != ESP_BT_STATUS_SUCCESS) {
-                LOG_PRINTLN("ESP_GAP_BLE_SCAN_START_COMPLETE_EVT failed");
-                esp_ble_gattc_close(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
-                esp_ble_gap_start_scanning(GAP_SCAN_DURATION);
-                break;
-            }
-            LOG_PRINTLN("ESP_GAP_BLE_SCAN_START_COMPLETE_EVT successfully");
-            is_scanning = true;
-            break;
-
-        /* The scan has aquired results */
-        case ESP_GAP_BLE_SCAN_RESULT_EVT: {
-            esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *) param;
-            switch (scan_result->scan_rst.search_evt) {
-                /* Compare the current packet to what we expect to get */
-                case ESP_GAP_SEARCH_INQ_RES_EVT:
-                {
-                    uint8_t *adv_data = scan_result->scan_rst.ble_adv;
-                    uint8_t adv_len   = scan_result->scan_rst.adv_data_len;
-
-                    char dev_name[32];
-                    char *name = get_device_name(adv_data, adv_len, dev_name, sizeof(dev_name));
-
-                    if (name) {
-                        if (strncmp(name, "ATS-", 4) == 0) {
-                            ESP_LOGI("SCAN", "Found device: %s RSSI=%d", name, scan_result->scan_rst.rssi);
-                            bluetooth_add_device(scan_result->scan_rst.bda, scan_result->scan_rst.rssi, adv_data[6]);
-                        }
-                    }
-                    break;
-                }
-
-                case ESP_GAP_SEARCH_INQ_CMPL_EVT:
-                    break;
-                default:
-                    break;
-            }
-        } break;
-
-        /* The scan has either stopped successfully or failed */
-        case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
-            if (param->scan_stop_cmpl.status != ESP_BT_STATUS_SUCCESS) {
-                LOG_PRINTLN("ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT failed");
-                break;
-            }
-            LOG_PRINTLN("ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT successfully");
-            break;
-
-        case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
-            break;
-
-        default:
-            break;
-    }
-}
-
-tag_scan_t *bluetooth_get_tag_list(void) {
-    xSemaphoreTake(ble_semaphore, portMAX_DELAY);
-    return &tag_list;
-}
-
-void bluetooth_release_tag_list(void) {
-    xSemaphoreGive(ble_semaphore);
-}
-
-void bluetooth_clear_device_list(void) {
-    xSemaphoreTake(ble_semaphore, portMAX_DELAY);
-    memset(&tag_list, 0, sizeof(tag_list));
-    xSemaphoreGive(ble_semaphore);
-}
-
-void bluetooth_start_scanning(void) {
-    if (!is_scanning) {
-        esp_ble_gap_start_scanning(GAP_SCAN_DURATION);
-    }
-}
-
-void bluetooth_add_device(uint8_t *address, int8_t rssi, uint8_t status) {
+void bluetooth_add_device(uint8_t *address, int8_t rssi) {
     int timeout = 0;
     xSemaphoreTake(ble_semaphore, portMAX_DELAY);
 
@@ -303,6 +207,95 @@ void bluetooth_add_device(uint8_t *address, int8_t rssi, uint8_t status) {
     xSemaphoreGive(ble_semaphore);
 }
 
+static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param) {
+    static int try_start = 0;
+
+    switch (event) {
+        case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
+            break;
+        }
+
+        case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT:
+            if (param->scan_start_cmpl.status != ESP_BT_STATUS_SUCCESS) {
+                LOG_PRINTLN("ESP_GAP_BLE_SCAN_START_COMPLETE_EVT failed");
+                esp_ble_gattc_close(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
+                esp_ble_gap_start_scanning(GAP_SCAN_DURATION);
+                break;
+            }
+            LOG_PRINTLN("ESP_GAP_BLE_SCAN_START_COMPLETE_EVT successfully");
+            is_scanning = true;
+            break;
+
+        /* The scan has aquired results */
+        case ESP_GAP_BLE_SCAN_RESULT_EVT: {
+            esp_ble_gap_cb_param_t *scan_result = (esp_ble_gap_cb_param_t *) param;
+            switch (scan_result->scan_rst.search_evt) {
+                /* Compare the current packet to what we expect to get */
+                case ESP_GAP_SEARCH_INQ_RES_EVT:
+                {
+                    char dev_name[32];
+                    char *name = ble_get_name(scan_result->scan_rst.ble_adv,
+                                            scan_result->scan_rst.adv_data_len,
+                                            dev_name,
+                                            sizeof(dev_name));
+
+                    if (!name) {
+                        LOG_PRINTLN("Name is NULL");
+                        return;
+                    }
+
+                    if (strncmp(name, "ATS", 3) != 0) {
+                        LOG_PRINTLN("Not supported name");
+                        return;
+                    }
+
+                    bluetooth_add_device(scan_result->scan_rst.bda, scan_result->scan_rst.rssi);
+                    break;
+                }
+
+                case ESP_GAP_SEARCH_INQ_CMPL_EVT:
+                    break;
+                default:
+                    break;
+            }
+        } break;
+
+        /* The scan has either stopped successfully or failed */
+        case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT:
+            if (param->scan_stop_cmpl.status != ESP_BT_STATUS_SUCCESS) {
+                LOG_PRINTLN("ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT failed");
+                break;
+            }
+            LOG_PRINTLN("ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT successfully");
+            break;
+
+        case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
+            break;
+
+        default:
+            break;
+    }
+}
+
+tag_scan_t *bluetooth_get_tag_list(void) {
+    xSemaphoreTake(ble_semaphore, portMAX_DELAY);
+    return &tag_list;
+}
+
+void bluetooth_release_tag_list(void) {
+    xSemaphoreGive(ble_semaphore);
+}
+
+void bluetooth_clear_device_list(void) {
+    xSemaphoreTake(ble_semaphore, portMAX_DELAY);
+    memset(&tag_list, 0, sizeof(tag_list));
+    xSemaphoreGive(ble_semaphore);
+}
+
+void bluetooth_start_scanning(void) {
+    esp_ble_gap_start_scanning(GAP_SCAN_DURATION);
+}
+
 void bluetooth_airtag_connect(esp_bd_addr_t mac, esp_ble_addr_type_t addr_type) {
     LOG_PRINTLN("Connecting to device");
     esp_ble_gap_stop_scanning();
@@ -310,6 +303,12 @@ void bluetooth_airtag_connect(esp_bd_addr_t mac, esp_ble_addr_type_t addr_type) 
     
     memcpy(last_tag_addr, mac, sizeof(esp_bd_addr_t));
     esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, mac, addr_type, true);
+}
+
+void bluetooth_disconnect(void) {
+    esp_ble_gap_stop_scanning();
+    esp_ble_gatts_close(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
+    esp_ble_gattc_close(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
 }
 
 void bluetooth_init(void) {

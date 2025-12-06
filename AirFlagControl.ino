@@ -11,27 +11,27 @@ system_status_t system_status;
 /******************************************************************************/
 
 static void handle_select(void) {
-    Serial.println("BUTTON_SELECT");
+    LOG_PRINTLN("BUTTON_SELECT");
 }
 
 static void handle_up(void) {
-    Serial.println("BUTTON_UP");
+    LOG_PRINTLN("BUTTON_UP");
 }
 
 static void handle_down(void) {
-    Serial.println("BUTTON_DOWN");
+    LOG_PRINTLN("BUTTON_DOWN");
 }
 
 static void handle_left(void) {
-    Serial.println("BUTTON_LEFT");
+    LOG_PRINTLN("BUTTON_LEFT");
 }
 
 static void handle_right(void) {
-    Serial.println("BUTTON_RIGHT");
+    LOG_PRINTLN("BUTTON_RIGHT");
 }
 
 static void handle_select_holding(void) {
-    Serial.println("BUTTON_SELECT HOLDING");
+    LOG_PRINTLN("BUTTON_SELECT HOLDING");
 }
 
 static const button_handler_t button_handlers[BUTTON_COUNT] = {
@@ -57,13 +57,14 @@ static void user_inft_loop(void) {
 /******************************************************************************/
 
 void setup() {
-    Serial.begin(115200);
-    Serial.println("Power up!");
+    LOG_BEGIN(115200);
 
     esp_bsp_init();
     display_init();
     bluetooth_init();
     bluetooth_start_scanning();
+    
+    LOG_PRINTLN("Start main loop");
 }
 
 void loop() {

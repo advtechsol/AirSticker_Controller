@@ -24,6 +24,6 @@ typedef struct {
 tag_scan_t *bluetooth_get_tag_list(void);
 void bluetooth_release_tag_list(void);
 void bluetooth_start_scanning(void);
-void bluetooth_add_device(uint8_t *address, int8_t rssi, uint8_t status);
 void bluetooth_airtag_connect(esp_bd_addr_t mac, esp_ble_addr_type_t addr_type);
+void bluetooth_disconnect(void);
 void bluetooth_init(void);

@@ -22,12 +22,15 @@
 #define ELAPSED_TIME_MS(a)        ((millis() - (a)) & 0xFFFFFFFF)
 
 /* Debug */
+#define DEBUG_ENABLED 1
 #if DEBUG_ENABLED
 #define LOG_BEGIN(a)              Serial.begin(a)
 #define LOG_PRINT(a)              Serial.print(a)
 #define LOG_PRINTLN(a)            Serial.println(a)
+#define LOG_PRINTF(...)           Serial.printf(__VA_ARGS__)
 #else
 #define LOG_BEGIN(a)
 #define LOG_PRINT(a)
 #define LOG_PRINTLN(a)
+#define LOG_PRINTF(a)
 #endif
