@@ -6,13 +6,13 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 
-#define MAX_AIRTAG_COUNT          160
-#define GAP_SCAN_DURATION         15
+#define BLE_NAME_MAX_LEN 16
 
 typedef struct {
     int8_t rssi;
     uint8_t status;
     esp_bd_addr_t bda;
+    char name[BLE_NAME_MAX_LEN];
     uint32_t last_seen;
 } tag_t;
 

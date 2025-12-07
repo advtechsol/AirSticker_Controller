@@ -156,7 +156,7 @@ static char* ble_get_name(uint8_t *data, uint8_t len, char *out, size_t out_len)
     return NULL;
 }
 
-void bluetooth_add_device(uint8_t *address, int8_t rssi) {
+void bluetooth_add_device(char *name, uint8_t *address, int8_t rssi) {
     int timeout = 0;
     xSemaphoreTake(ble_semaphore, portMAX_DELAY);
 
@@ -195,6 +195,8 @@ void bluetooth_add_device(uint8_t *address, int8_t rssi) {
         if (tag_list.count < MAX_AIRTAG_COUNT) {
             index = tag_list.count;
             tag_list.count++;
+            LOG_PRINT("Add a new device ");
+            LOG_PRINTLN(name);
         }
         else if (oldest_index != -1) {
             index = oldest_index;
@@ -202,6 +204,7 @@ void bluetooth_add_device(uint8_t *address, int8_t rssi) {
     }
 
     xthal_memcpy(tag_list.tags[index].bda, address, 6);
+    snprintf(tag_list.tags[index].name, BLE_NAME_MAX_LEN, "%s", name);
     tag_list.tags[index].rssi = rssi;
     tag_list.tags[index].last_seen = CURRENT_TIME_MS();
     xSemaphoreGive(ble_semaphore);
@@ -249,7 +252,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         return;
                     }
 
-                    bluetooth_add_device(scan_result->scan_rst.bda, scan_result->scan_rst.rssi);
+                    bluetooth_add_device(name, scan_result->scan_rst.bda, scan_result->scan_rst.rssi);
                     break;
                 }
 
@@ -293,6 +296,7 @@ void bluetooth_clear_device_list(void) {
 }
 
 void bluetooth_start_scanning(void) {
+    bluetooth_clear_device_list();
     esp_ble_gap_start_scanning(GAP_SCAN_DURATION);
 }
 

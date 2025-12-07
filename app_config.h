@@ -5,6 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_AIRTAG_COUNT          64
+#define GAP_SCAN_DURATION         5
+
+/* Utils */
+#define CURRENT_TIME_MS()         millis()
+#define ELAPSED_TIME_MS(a)        ((millis() - (a)) & 0xFFFFFFFF)
+
+/* GPIO */
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 #define OLED_RESET -1
@@ -16,10 +24,6 @@
 #define BUTTON_RIGHT_PIN 25
 #define VIBE 13
 #define RED_LED 2
-
-/* Utils */
-#define CURRENT_TIME_MS()         millis()
-#define ELAPSED_TIME_MS(a)        ((millis() - (a)) & 0xFFFFFFFF)
 
 /* Debug */
 #define DEBUG_ENABLED 1
