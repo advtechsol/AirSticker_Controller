@@ -10,7 +10,7 @@
 
 typedef struct {
     int8_t rssi;
-    uint8_t status;
+    uint8_t addr_type;
     esp_bd_addr_t bda;
     char name[BLE_NAME_MAX_LEN];
     uint32_t last_seen;
@@ -26,4 +26,7 @@ void bluetooth_release_tag_list(void);
 void bluetooth_start_scanning(void);
 void bluetooth_airtag_connect(esp_bd_addr_t mac, esp_ble_addr_type_t addr_type);
 void bluetooth_disconnect(void);
+
+bool bluetooth_send_command(const char *cmd);
+bool bluetooth_is_connected(void);
 void bluetooth_init(void);

@@ -26,6 +26,7 @@ static SemaphoreHandle_t ble_semaphore;
 static tag_scan_t tag_list;
 static bool is_scanning = false;
 static bool get_server = false;
+static bool is_connected = false;
 static esp_bd_addr_t last_tag_addr = {0};
 
 static esp_ble_scan_params_t ble_scan_params = {
@@ -97,6 +98,8 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
                 esp_ble_gatts_close(gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
                 break;
             }
+
+            is_connected = true;
             LOG_PRINTLN("ESP_GATTC_SEARCH_CMPL_EVT successfully");
             break;
         }
@@ -156,7 +159,7 @@ static char* ble_get_name(uint8_t *data, uint8_t len, char *out, size_t out_len)
     return NULL;
 }
 
-void bluetooth_add_device(char *name, uint8_t *address, int8_t rssi) {
+void bluetooth_add_device(char *name, uint8_t *address, int8_t rssi, uint8_t addr_type) {
     int timeout = 0;
     xSemaphoreTake(ble_semaphore, portMAX_DELAY);
 
@@ -206,6 +209,7 @@ void bluetooth_add_device(char *name, uint8_t *address, int8_t rssi) {
     xthal_memcpy(tag_list.tags[index].bda, address, 6);
     snprintf(tag_list.tags[index].name, BLE_NAME_MAX_LEN, "%s", name);
     tag_list.tags[index].rssi = rssi;
+    tag_list.tags[index].addr_type = ;
     tag_list.tags[index].last_seen = CURRENT_TIME_MS();
     xSemaphoreGive(ble_semaphore);
 }
@@ -247,7 +251,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         return;
                     }
 
-                    bluetooth_add_device(name, scan_result->scan_rst.bda, scan_result->scan_rst.rssi);
+                    bluetooth_add_device(name, scan_result->scan_rst.bda, scan_result->scan_rst.rssi, scan_result->scan_rst.addr_type);
                     break;
                 }
 
@@ -305,9 +309,22 @@ void bluetooth_airtag_connect(esp_bd_addr_t mac, esp_ble_addr_type_t addr_type) 
 }
 
 void bluetooth_disconnect(void) {
-    esp_ble_gap_stop_scanning();
     esp_ble_gatts_close(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
     esp_ble_gattc_close(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
+    is_connected = false;
+}
+
+bool bluetooth_send_command(const char *cmd) {
+    if (is_connected) {
+        return false;
+    }
+
+    LOG_PRINT("BLE sent "); LOG_PRINTLN(cmd);
+    return true;
+}
+
+bool bluetooth_is_connected(void) {
+    return is_connected;
 }
 
 void bluetooth_init(void) {
