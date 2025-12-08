@@ -229,11 +229,12 @@ static void display_draw_error_screen(system_status_t *status) {
         display.setTextSize(1);
         display.setTextColor(WHITE, BLACK);
         display.setCursor(0, 14);
-        display.print("Error: ");
+        display.println("Error: ");
+        display.print("    ");
         display.println(error_names[status->error]);
 
         display.setTextColor(BLACK, WHITE);
-        display.setCursor(0, 24);
+        display.setCursor(0, 32);
         display.println("  [ Back ]");
         display.setTextColor(WHITE, BLACK);
     }

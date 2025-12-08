@@ -184,7 +184,7 @@ static void handle_select(void) {
                     system_status.max_index = GPIO_MENU_COUNT;
                     system_status.screen_id = SCREEN_CONTROL_GPIO;
                 }
-                else if (system_status.selected_index == ACTION_CONTROL_GPIO) {
+                else if (system_status.selected_index == ACTION_CONTROL_BLE) {
                     system_status.max_index = BLE_MENU_COUNT;
                     system_status.screen_id = SCREEN_CONTROL_BLE;
                 }
@@ -261,6 +261,11 @@ static void handle_select(void) {
                 system_status.max_index = BLE_MENU_COUNT;
                 system_status.screen_id = SCREEN_CONTROL_BLE;
             }
+            break;
+
+        case SCREEN_BLE_ERROR:
+            /* Back to ping screen */
+            system_status.screen_id = SCREEN_PING;
             break;
 
         default:

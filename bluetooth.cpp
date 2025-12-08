@@ -7,7 +7,6 @@
 #include "app_config.h"
 #include "bluetooth.h"
 
-#define ATS_TAG_HANDLE_ID 14
 #define PROFILE_NUM       1
 #define PROFILE_A_APP_ID  0
 
@@ -29,6 +28,9 @@ static bool get_server = false;
 static bool is_connected = false;
 static esp_bd_addr_t last_tag_addr = {0};
 
+static uint16_t nus_handler = 0;
+static uint8_t ble_tx_buf[32];
+
 static esp_ble_scan_params_t ble_scan_params = {
     .scan_type          = BLE_SCAN_TYPE_ACTIVE,
     .own_addr_type      = BLE_ADDR_TYPE_PUBLIC,
@@ -41,6 +43,18 @@ static esp_ble_scan_params_t ble_scan_params = {
 static esp_bt_uuid_t nus_service_uuid = {
     .len = ESP_UUID_LEN_128,
     .uuid = {.uuid128 = {0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E},},
+};
+
+#if 0
+static esp_bt_uuid_t nus_tx_uuid = {
+    .len = ESP_UUID_LEN_128,
+    .uuid = {.uuid128 = {0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x03, 0x00, 0x40, 0x6E},},
+};
+#endif
+
+static esp_bt_uuid_t nus_rx_uuid = {
+    .len = ESP_UUID_LEN_128,
+    .uuid = {.uuid128 = {0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x02, 0x00, 0x40, 0x6E},},
 };
 
 static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param);
@@ -90,6 +104,22 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             get_server = true;
             gl_profile_tab[PROFILE_A_APP_ID].service_start_handle = p_data->search_res.start_handle;
             gl_profile_tab[PROFILE_A_APP_ID].service_end_handle = p_data->search_res.end_handle;
+
+            /* Find char */
+            esp_gattc_char_elem_t char_elem = {0};
+            uint16_t count = 0;
+            esp_ble_gattc_get_char_by_uuid(gl_profile_tab[PROFILE_A_APP_ID].gattc_if,
+                                            param->cfg_mtu.conn_id,
+                                            p_data->search_res.start_handle,
+                                            p_data->search_res.end_handle,
+                                            nus_rx_uuid,
+                                            &char_elem, &count);
+            if (count > 0) {
+                nus_handler = char_elem.char_handle;
+            }
+            else {
+                LOG_PRINTLN("Couldn't find char");
+            }
             break;
         }
         case ESP_GATTC_SEARCH_CMPL_EVT: {
@@ -103,9 +133,11 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             LOG_PRINTLN("ESP_GATTC_SEARCH_CMPL_EVT successfully");
             break;
         }
+
         case ESP_GATTC_DISCONNECT_EVT:
             LOG_PRINTLN("ESP_GATTC_DISCONNECT_EVT");
             get_server = false;
+            nus_handler = 0;
             gl_profile_tab[PROFILE_A_APP_ID].gattc_if = gattc_if;
             break;
         default:
@@ -315,7 +347,18 @@ void bluetooth_disconnect(void) {
 }
 
 bool bluetooth_send_command(const char *cmd) {
-    if (is_connected) {
+    int length = strlen(cmd);
+    if ((!is_connected) || (nus_handler == 0) || (length > sizeof(ble_tx_buf))) {
+        return false;
+    }
+
+    memcpy(ble_tx_buf, cmd, length);
+    if (esp_ble_gattc_write_char(gl_profile_tab[PROFILE_A_APP_ID].gattc_if,
+                            gl_profile_tab[PROFILE_A_APP_ID].conn_id,
+                            nus_handler, length, ble_tx_buf,
+                            ESP_GATT_WRITE_TYPE_RSP,
+                            ESP_GATT_AUTH_REQ_NONE) != ESP_OK) {
+        LOG_PRINTF("Failed to write char handler %d\n", nus_handler);
         return false;
     }
 
