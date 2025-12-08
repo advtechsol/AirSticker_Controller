@@ -3,11 +3,13 @@
 #include "bluetooth.h"
 
 #define MAX_LINES 5
+#define MAX_ACTION 3
 
 enum {
     SCREEN_PING = 0,
     SCREEN_SCANNING,
     SCREEN_DEVICE_LIST,
+    SCREEN_ACTIONS,
     SCREEN_COUNT,
 };
 
@@ -15,6 +17,7 @@ enum {
         "SCREEN_PING",        \
         "SCREEN_SCANNING",    \
         "SCREEN_DEVICE_LIST", \
+        "SCREEN_ACTIONS",     \
     }
 
 typedef struct {
@@ -27,6 +30,7 @@ typedef struct {
     uint32_t start_scanning_ms;
     uint32_t last_ping_ms;
     char names[MAX_LINES][BLE_NAME_MAX_LEN + 16];
+    tag_t selected_tag;
 } system_status_t;
 
 void display_loop(system_status_t *status);

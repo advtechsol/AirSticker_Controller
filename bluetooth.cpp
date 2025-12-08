@@ -242,12 +242,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                                             dev_name,
                                             sizeof(dev_name));
 
-                    if (!name) {
-                        LOG_PRINTLN("Name is NULL");
-                        return;
-                    }
-
-                    if (strncmp(name, "ATS", 3) != 0) {
+                    if ((!name) || (strncmp(name, "ATS", 3) != 0)) {
                         LOG_PRINTLN("Not supported name");
                         return;
                     }

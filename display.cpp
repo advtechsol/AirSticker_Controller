@@ -93,10 +93,35 @@ static void display_draw_device_list_screen(system_status_t *status) {
     }
 }
 
+static void display_draw_actions_screen(system_status_t *status) {
+    display_draw_title("Actions");
+    display.setTextSize(1);
+    display.setTextColor(WHITE, BLACK);
+    display.setCursor(0, 14);
+    display.print("Device: ");
+    display.println(status->selected_tag.name);
+
+    const char *options[3] = {"  GPIO", "  BLE", " [ Back ]"};
+    int y = 26;
+    for (uint8_t i = 0; i < 3; i++) {
+        if (i == status->selected_index) {
+            display.setTextColor(BLACK, WHITE);
+            display.setCursor(0, y);
+            display.println(options[i]);
+            display.setTextColor(WHITE, BLACK);
+        } else {
+            display.setCursor(0, y);
+            display.println(options[i]);
+        }
+        y += 10;
+    }
+}
+
 screen_draw_t screen_draws[SCREEN_COUNT] = {
     display_draw_ping_screen,
     display_draw_scanning_screen,
     display_draw_device_list_screen,
+    display_draw_actions_screen,
 };
 
 void display_loop(system_status_t *status) {

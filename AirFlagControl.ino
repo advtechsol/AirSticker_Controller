@@ -52,36 +52,83 @@ static void fill_devices_name(void) {
 /******************************************************************************/
 
 static void handle_select(void) {
-    if (system_status.screen_id == SCREEN_PING) {
-        system_status.screen_id = SCREEN_SCANNING;
-        bluetooth_start_scanning();
-    }
-    else if (system_status.screen_id == SCREEN_DEVICE_LIST) {
-        if (system_status.selected_device == system_status.device_count) {
-            /* Back to ping */
-            system_status.screen_id = SCREEN_PING;
-        }
-        else {
-            LOG_PRINTLN(system_status.names[system_status.selected_index]);
-        }
+    switch (system_status.screen_id) {
+        case SCREEN_PING:
+            system_status.screen_id = SCREEN_SCANNING;
+            system_status.last_ping_ms = CURRENT_TIME_MS();
+            bluetooth_start_scanning();
+            break;
+
+        case SCREEN_DEVICE_LIST:
+            if (system_status.device_count > 0) {
+                if (system_status.selected_device >= system_status.device_count) {
+                    /* Back to ping */
+                    system_status.screen_id = SCREEN_PING;
+                }
+                else {
+                    LOG_PRINTLN(system_status.names[system_status.selected_index]);
+                    tags = bluetooth_get_tag_list();
+                    memcpy(&system_status.selected_tag, &tags->tags[system_status.selected_device], sizeof(tag_t));
+                    bluetooth_release_tag_list();
+                    system_status.selected_index = 0;
+                    system_status.screen_id = SCREEN_ACTIONS;
+                }
+            }
+            break;
+
+        case SCREEN_ACTIONS:
+            if (system_status.selected_index >= MAX_ACTION - 1) {
+                /* Back to device list screen */
+                system_status.screen_id = SCREEN_DEVICE_LIST;
+                fill_devices_name();
+            }
+            else {
+                LOG_PRINTF("Action %d\n", system_status.selected_index);
+            }
+            break;
+
+        default:
+            break;
     }
 }
 
 static void handle_up(void) {
-    if (system_status.screen_id == SCREEN_DEVICE_LIST) {
-        if (system_status.selected_device > 0) {
-            system_status.selected_device--;
-            fill_devices_name();
-        }
+    switch (system_status.screen_id) {
+        case SCREEN_DEVICE_LIST:
+            if (system_status.selected_device > 0) {
+                system_status.selected_device--;
+                fill_devices_name();
+            }
+            break;
+
+        case SCREEN_ACTIONS:
+            if (system_status.selected_index) {
+                system_status.selected_index--;
+            }
+            break;
+
+        default:
+            break;
     }
 }
 
 static void handle_down(void) {
-    if (system_status.screen_id == SCREEN_DEVICE_LIST) {
-        if (system_status.selected_device < system_status.device_count) {
-            system_status.selected_device++;
-            fill_devices_name();
-        }
+    switch (system_status.screen_id) {
+        case SCREEN_DEVICE_LIST:
+            if (system_status.selected_device < system_status.device_count) {
+                system_status.selected_device++;
+                fill_devices_name();
+            }
+            break;
+
+        case SCREEN_ACTIONS:
+            if (system_status.selected_index < MAX_ACTION - 1) {
+                system_status.selected_index++;
+            }
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -138,12 +185,17 @@ static void machine_state(void) {
             system_status.device_count = tags->count;
 
             if (ELAPSED_TIME_MS(system_status.start_scanning_ms) > GAP_SCAN_DURATION * 1000) {
-                system_status.screen_id = SCREEN_DEVICE_LIST;
+                if (system_status.device_count > 0) { 
+                    system_status.screen_id = SCREEN_DEVICE_LIST;
 
-                system_status.selected_device = 0;
-                system_status.last_device_count = system_status.device_count;
-                LOG_PRINTF("Number of device %d\n", system_status.device_count);
-                fill_devices_name();
+                    system_status.selected_device = 0;
+                    system_status.last_device_count = system_status.device_count;
+                    fill_devices_name();
+                }
+                else {
+                    LOG_PRINTLN("No device found");
+                    system_status.screen_id = SCREEN_PING;
+                }
             }
 
             bluetooth_release_tag_list();
