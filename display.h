@@ -24,7 +24,7 @@ enum {
     GPIO_CONTROL_ON,
     GPIO_MENU_BACK,
     GPIO_MENU_COUNT,
-}
+};
 
 enum {
     BLE_CONTROL_OFF = 0,
@@ -42,7 +42,7 @@ enum {
     DELAY_CONTROL_OK,
     DELAY_MENU_BACK,
     DELAY_MENU_COUNT,
-}
+};
 
 enum {
     SCREEN_PING = 0,
@@ -78,7 +78,6 @@ typedef struct {
     uint8_t error;
 
     uint8_t gpio_state;      /* From remote device */
-    uint8_t set_gpio_state;  /* Set to remote device */
     int ble_delay;           /* From remote device (in minutes) */
     int set_ble_delay;       /* Set to remote device (in minutes) */
 

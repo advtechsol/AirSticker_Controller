@@ -10,7 +10,7 @@
 
 typedef struct {
     int8_t rssi;
-    uint8_t addr_type;
+    esp_ble_addr_type_t addr_type;
     esp_bd_addr_t bda;
     char name[BLE_NAME_MAX_LEN];
     uint32_t last_seen;

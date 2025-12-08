@@ -58,10 +58,10 @@ int mod_wrap(int value, int delta, int mod) {
 }
 
 static void adjust_delay_time(int delta) {
-    int tensH = (status->set_ble_delay / 60) / 10;
-    int onesH = (status->set_ble_delay / 60) % 10;
-    int tensM = (status->set_ble_delay % 60) / 10;
-    int onesM = (status->set_ble_delay % 60) % 10;
+    int tensH = (system_status.set_ble_delay / 60) / 10;
+    int onesH = (system_status.set_ble_delay / 60) % 10;
+    int tensM = (system_status.set_ble_delay % 60) / 10;
+    int onesM = (system_status.set_ble_delay % 60) % 10;
 
     switch (system_status.selected_index) {
         case 0: {
@@ -95,7 +95,7 @@ static void adjust_delay_time(int delta) {
     if (delay_minutes > 59) {
         delay_minutes = 59;
     }
-    status->set_ble_delay = delay_hours * 60 + delay_minutes;
+    system_status.set_ble_delay = delay_hours * 60 + delay_minutes;
 }
 
 /******************************************************************************/
@@ -108,10 +108,12 @@ static void enter_error_screen(uint8_t error) {
     system_status.screen_id = SCREEN_BLE_ERROR;
 }
 
-static void main_send_command(const char *cmd) {
+static bool main_send_command(const char *cmd) {
     if (!bluetooth_send_command(cmd)) {
         enter_error_screen(ERROR_BLE_SEND);
+        return false;
     }
+    return true;
 }
 
 static void increase_selection(void) {
@@ -199,11 +201,15 @@ static void handle_select(void) {
 
         case SCREEN_CONTROL_GPIO:
             if (system_status.selected_index == GPIO_CONTROL_OFF) {
-                main_send_command("OUTPUTS:0");
+                if (main_send_command("OUTPUTS:0")) {
+                    system_status.gpio_state = 0;
+                }
                 return;
             }
             else if (system_status.selected_index == GPIO_CONTROL_ON) {
-                main_send_command("OUTPUTS:1");
+                if (main_send_command("OUTPUTS:1")) {
+                    system_status.gpio_state = 1;
+                }
                 return;
             }
             else {
@@ -215,11 +221,15 @@ static void handle_select(void) {
 
         case SCREEN_CONTROL_BLE:
             if (system_status.selected_index == BLE_CONTROL_OFF) {
-                main_send_command("BLE_DELAY:-1");
+                if (main_send_command("BLE_DELAY:-1")) {
+                    system_status.ble_delay = -1;
+                }
                 return;
             }
             else if (system_status.selected_index == BLE_CONTROL_ON) {
-                main_send_command("BLE_DELAY:0");
+                if (main_send_command("BLE_DELAY:0")) {
+                    system_status.ble_delay = 0;
+                }
                 return;
             }
             else if (system_status.selected_index == BLE_CONTROL_DELAY) {
@@ -239,10 +249,12 @@ static void handle_select(void) {
             }
             else {
                 if (system_status.selected_index == DELAY_CONTROL_OK) {
-                    LOG_PRINTF("Set BLE delay %d minutes\n", status->set_ble_delay);
+                    LOG_PRINTF("Set BLE delay %d minutes\n", system_status.set_ble_delay);
                     char cmd[16];
-                    sprintf(cmd, "BLE_DELAY:%d", status->set_ble_delay);
-                    main_send_command(cmd);
+                    sprintf(cmd, "BLE_DELAY:%d", system_status.set_ble_delay);
+                    if (main_send_command(cmd)) {
+                        system_status.ble_delay = system_status.set_ble_delay;
+                    }
                 }
 
                 /* Back to BLE screen */

@@ -159,7 +159,7 @@ static char* ble_get_name(uint8_t *data, uint8_t len, char *out, size_t out_len)
     return NULL;
 }
 
-void bluetooth_add_device(char *name, uint8_t *address, int8_t rssi, uint8_t addr_type) {
+void bluetooth_add_device(char *name, uint8_t *address, int8_t rssi, esp_ble_addr_type_t addr_type) {
     int timeout = 0;
     xSemaphoreTake(ble_semaphore, portMAX_DELAY);
 
@@ -209,7 +209,7 @@ void bluetooth_add_device(char *name, uint8_t *address, int8_t rssi, uint8_t add
     xthal_memcpy(tag_list.tags[index].bda, address, 6);
     snprintf(tag_list.tags[index].name, BLE_NAME_MAX_LEN, "%s", name);
     tag_list.tags[index].rssi = rssi;
-    tag_list.tags[index].addr_type = ;
+    tag_list.tags[index].addr_type = addr_type;
     tag_list.tags[index].last_seen = CURRENT_TIME_MS();
     xSemaphoreGive(ble_semaphore);
 }
@@ -251,7 +251,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         return;
                     }
 
-                    bluetooth_add_device(name, scan_result->scan_rst.bda, scan_result->scan_rst.rssi, scan_result->scan_rst.addr_type);
+                    bluetooth_add_device(name, scan_result->scan_rst.bda, scan_result->scan_rst.rssi, BLE_ADDR_TYPE_RANDOM);
                     break;
                 }
 
@@ -305,7 +305,7 @@ void bluetooth_airtag_connect(esp_bd_addr_t mac, esp_ble_addr_type_t addr_type) 
     is_scanning = false;
     
     memcpy(last_tag_addr, mac, sizeof(esp_bd_addr_t));
-    esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, mac, addr_type, true);
+    esp_ble_gattc_open(gl_profile_tab[PROFILE_A_APP_ID].gattc_if, mac, (esp_ble_addr_type_t) addr_type, true);
 }
 
 void bluetooth_disconnect(void) {

@@ -182,7 +182,7 @@ static void display_draw_control_ble_screen(system_status_t *status) {
 }
 
 static void display_draw_set_delay_screen(system_status_t *status) {
-    drawTitle("DELAY (minutes)");
+    display_draw_title("DELAY (minutes)");
     display.setTextSize(1);
     display.setTextColor(WHITE, BLACK);
     display.setCursor(0, 12);
