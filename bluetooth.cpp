@@ -45,13 +45,6 @@ static esp_bt_uuid_t nus_service_uuid = {
     .uuid = {.uuid128 = {0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x01, 0x00, 0x40, 0x6E},},
 };
 
-#if 0
-static esp_bt_uuid_t nus_tx_uuid = {
-    .len = ESP_UUID_LEN_128,
-    .uuid = {.uuid128 = {0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x03, 0x00, 0x40, 0x6E},},
-};
-#endif
-
 static esp_bt_uuid_t nus_rx_uuid = {
     .len = ESP_UUID_LEN_128,
     .uuid = {.uuid128 = {0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x02, 0x00, 0x40, 0x6E},},
@@ -85,7 +78,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         case ESP_GATTC_DIS_SRVC_CMPL_EVT:
             if (param->dis_srvc_cmpl.status == ESP_GATT_OK){
                 LOG_PRINTLN("ESP_GATTC_DIS_SRVC_CMPL_EVT");
-                esp_ble_gattc_search_service(gattc_if, param->cfg_mtu.conn_id, &nus_service_uuid);
+                esp_ble_gattc_search_service(gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id, &nus_service_uuid);
             }
             break;
         case ESP_GATTC_CFG_MTU_EVT:
@@ -104,22 +97,6 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             get_server = true;
             gl_profile_tab[PROFILE_A_APP_ID].service_start_handle = p_data->search_res.start_handle;
             gl_profile_tab[PROFILE_A_APP_ID].service_end_handle = p_data->search_res.end_handle;
-
-            /* Find char */
-            esp_gattc_char_elem_t char_elem = {0};
-            uint16_t count = 0;
-            esp_ble_gattc_get_char_by_uuid(gl_profile_tab[PROFILE_A_APP_ID].gattc_if,
-                                            param->cfg_mtu.conn_id,
-                                            p_data->search_res.start_handle,
-                                            p_data->search_res.end_handle,
-                                            nus_rx_uuid,
-                                            &char_elem, &count);
-            if (count > 0) {
-                nus_handler = char_elem.char_handle;
-            }
-            else {
-                LOG_PRINTLN("Couldn't find char");
-            }
             break;
         }
         case ESP_GATTC_SEARCH_CMPL_EVT: {
@@ -128,9 +105,49 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
                 esp_ble_gatts_close(gattc_if, gl_profile_tab[PROFILE_A_APP_ID].conn_id);
                 break;
             }
-
-            is_connected = true;
+            
             LOG_PRINTLN("ESP_GATTC_SEARCH_CMPL_EVT successfully");
+            if (!get_server) {
+                LOG_PRINTLN("Couldn't found service");
+                break;
+            }
+            is_connected = true;
+
+            uint16_t count = 0;
+            esp_ble_gattc_get_attr_count(
+                gl_profile_tab[PROFILE_A_APP_ID].gattc_if,
+                gl_profile_tab[PROFILE_A_APP_ID].conn_id,
+                ESP_GATT_DB_CHARACTERISTIC,
+                gl_profile_tab[PROFILE_A_APP_ID].service_start_handle,
+                gl_profile_tab[PROFILE_A_APP_ID].service_end_handle,
+                0,
+                &count
+            );
+            if (count == 0) {
+                LOG_PRINTLN("No characteristics found");
+                break;
+            }
+            LOG_PRINTF("Found %d characteristics\n", count);
+
+            esp_gattc_char_elem_t *char_elem = (esp_gattc_char_elem_t *) malloc(count * sizeof(*char_elem));
+            esp_ble_gattc_get_all_char(
+                gl_profile_tab[PROFILE_A_APP_ID].gattc_if,
+                gl_profile_tab[PROFILE_A_APP_ID].conn_id,
+                gl_profile_tab[PROFILE_A_APP_ID].service_start_handle,
+                gl_profile_tab[PROFILE_A_APP_ID].service_end_handle,
+                char_elem, &count, 0
+            );
+            for (int i = 0; i < count; i++) {
+                ESP_LOGI(TAG, "Char %d UUID: %s handle: %u", i,
+                        uuid_to_str(char_elem[i].uuid), char_elem[i].char_handle);
+                
+                if (memcmp(char_elem[i].uuid.uuid.uuid128, nus_rx_uuid.uuid.uuid128, ESP_UUID_LEN_128) == 0) {
+                    nus_handler = char_elem[i].char_handle;
+                    LOG_PRINTF("RX Handler %d\n", nus_handler);
+                    break;
+                }
+            }
+            free(char_elem);
             break;
         }
 
@@ -283,7 +300,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                         return;
                     }
 
-                    bluetooth_add_device(name, scan_result->scan_rst.bda, scan_result->scan_rst.rssi, BLE_ADDR_TYPE_RANDOM);
+                    bluetooth_add_device(name, scan_result->scan_rst.bda, scan_result->scan_rst.rssi, scan_result->scan_rst.ble_addr_type);
                     break;
                 }
 
